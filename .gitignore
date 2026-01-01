@@ -1,0 +1,19 @@
+# OS junk
+.DS_Store
+
+# Datasets (DO NOT COMMIT)
+datasets/
+!datasets/README.md
+
+# Trained models (DO NOT COMMIT)
+models/
+!models/README.md
+
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environments
+.venv/
+.env/
+
