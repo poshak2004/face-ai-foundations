@@ -1,20 +1,23 @@
 import cv2
 import mediapipe as mp
+from mediapipe.tasks import python
+from mediapipe.tasks.python import vision
 
 # ----------------------------
-# MediaPipe setup
+# Load model
 # ----------------------------
-mp_face_detection = mp.solutions.face_detection
-mp_drawing = mp.solutions.drawing_utils
+MODEL_PATH = "models/blaze_face_short_range.tflite"
 
-# Use model_selection=0 for close faces, 1 for far faces
-face_detection = mp_face_detection.FaceDetection(
-    model_selection=0,
-    min_detection_confidence=0.6
+base_options = python.BaseOptions(model_asset_path=MODEL_PATH)
+options = vision.FaceDetectorOptions(
+    base_options=base_options,
+    running_mode=vision.RunningMode.IMAGE
 )
 
+detector = vision.FaceDetector.create_from_options(options)
+
 # ----------------------------
-# Webcam setup
+# Webcam
 # ----------------------------
 cap = cv2.VideoCapture(0)
 
@@ -31,25 +34,27 @@ while True:
     if not ret:
         break
 
-    # OpenCV uses BGR, MediaPipe expects RGB
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-    results = face_detection.process(rgb_frame)
+    mp_image = mp.Image(
+        image_format=mp.ImageFormat.SRGB,
+        data=rgb_frame
+    )
 
-    if results.detections:
+    detection_result = detector.detect(mp_image)
+
+    if detection_result.detections:
         h, w, _ = frame.shape
 
-        for detection in results.detections:
-            bbox = detection.location_data.relative_bounding_box
+        for detection in detection_result.detections:
+            bbox = detection.bounding_box
+            confidence = detection.categories[0].score
 
-            x = int(bbox.xmin * w)
-            y = int(bbox.ymin * h)
-            bw = int(bbox.width * w)
-            bh = int(bbox.height * h)
+            x = int(bbox.origin_x)
+            y = int(bbox.origin_y)
+            bw = int(bbox.width)
+            bh = int(bbox.height)
 
-            confidence = detection.score[0]
-
-            # Draw bounding box
             cv2.rectangle(
                 frame,
                 (x, y),
@@ -58,7 +63,6 @@ while True:
                 2
             )
 
-            # Confidence label
             cv2.putText(
                 frame,
                 f"{confidence:.2f}",
@@ -69,13 +73,10 @@ while True:
                 2
             )
 
-    cv2.imshow("MediaPipe Face Detection", frame)
+    cv2.imshow("MediaPipe Face Detection (Tasks API)", frame)
 
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
 
-# ----------------------------
-# Cleanup
-# ----------------------------
 cap.release()
 cv2.destroyAllWindows()
